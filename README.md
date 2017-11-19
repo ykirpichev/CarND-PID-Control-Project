@@ -33,6 +33,32 @@ While PID controllers are applicable to many control problems, and often perform
 PID controllers, when used alone, can give poor performance when the PID loop gains must be reduced so that the control system does not overshoot, oscillate or hunt about the control setpoint value. They also have difficulties in the presence of non-linearities, may trade-off regulation versus response time, do not react to changing process behavior (say, the process changes after it has warmed up), and have lag in responding to large disturbances.
 
 ---
+
+## Implementation
+I implemented algorithm as described by lections for steering angle PID controller.
+I used 0.3 value for throttle.
+I used twiddle for hyperparameters tunning. Each run consisted of 10000 samples, after that restart command is send and process starts from the begining using different parameters.
+
+TODO: implement smarter algorithm for throttle.
+
+## Hyperparameters tunning
+I took starter values from lecture:
+Kp = 0.2, Kd = 3.0, Ki = 0.004
+and use twiddle algorithm described by lectures in order to find best parameter values.
+
+For twiddle algorithm initially I used dp = {1, 1, 1} and multiplication koefficients 1.1 and 0.9 for transition step.
+But quickly figure out that process will converge slowly and changes dp to {0.1, 1, 0.01}.
+
+After that the following parameter values were found by twiddle algorithm: Kp = 0.755967, Kd = 29.9241, Ki = 0.00566257.
+
+In order to quick check for optimality (at least for local optimality), I used values above and run twiddle again.
+This time with the following parameters:
+Initial: Kp = 0.755967, Kd = 29.9241, Ki = 0.00566257
+Initial: dp = {1.0, 1.0, 1.0}
+Transition multiplicators: {1.3, 0.7}
+And process converged rather quickly to almost the same values:  Kp = 0.756567 Kd = 28.5002 Ki = 0.00566257.
+
+---
 ## Dependencies
 
 * cmake >= 3.5
