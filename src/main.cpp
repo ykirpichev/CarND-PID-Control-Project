@@ -35,18 +35,16 @@ void sendReset(uWS::WebSocket<uWS::SERVER>* ws)
     ws->send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 }
 
-
-
 class Twiddler {
 public:
     Twiddler(PID* pid) :
         pid_(pid),
-        bestError_(2000),
         counter_(0),
+        paramsIndex_(0),
         twiddleStep_(0),
         params_({pid->Kp, pid->Kd, pid->Ki}),
         dParams_({1.0, 1.0, 0.1}),
-        paramsIndex_(0),
+        bestError_(2000),
         finished_(false)
     {}
 
@@ -78,7 +76,10 @@ public:
     void twiddleNextParam() {
         twiddleStep_ = 0;
         paramsIndex_ = (paramsIndex_ + 1) % dParams_.size();
-        twiddleOnce();
+        checkTwiddleFinished();
+        if (!twiddleFinished()) {
+            twiddleOnce();
+        }
     }
 
     void twiddleOnce() {
@@ -88,6 +89,7 @@ public:
         } else if (twiddleStep_ == 1) {
             if (accumulatedError_ < bestError_) {
                 bestError_ = accumulatedError_;
+                bestParams_ = dParams_;
                 dParams_[paramsIndex_] *= 1.3;
 
                 twiddleNextParam();
@@ -98,6 +100,7 @@ public:
         } else if (twiddleStep_ == 2) {
             if (accumulatedError_ < bestError_) {
                 bestError_ = accumulatedError_;
+                bestParams_ = dParams_;
                 dParams_[paramsIndex_] *= 1.3;
 
                 twiddleNextParam();
@@ -119,8 +122,14 @@ public:
     }
 
     void checkTwiddleFinished() {
-        if (std::accumulate(dParams_.begin(), dParams_.end(), 0.0) < 0.0001) {
+        if (std::accumulate(dParams_.begin(), dParams_.end(), 0.0) < 0.001) {
             finished_ = true;
+            std::cout << "Twiddle: "
+                      << " best error: " << bestError_
+                      << " best params:"
+                      << " Kp" << bestParams_[0]
+                      << " Kd" << bestParams_[1]
+                      << " Ki" << bestParams_[2] << std::endl;
         }
     }
 
@@ -130,6 +139,7 @@ private:
     int paramsIndex_;
     int twiddleStep_;
     std::vector<double> params_;
+    std::vector<double> bestParams_;
     std::vector<double> dParams_;
     double accumulatedError_;
     double bestError_;
@@ -144,15 +154,14 @@ int main()
     PID pid;
 //    pid.Init(0.15, 1.5, 0.0001);
 //    pid.Init(1, 10.0, 0.01);
-    pid.Init(0.2, 3, 0.002);
-
-
+//    pid.Init(0.2, 3, 0.002);
 //    Twiddle: parameters:  Kp = 0.755967 Kd = 29.9241 Ki = 0.00566257
     pid.Init(0.755967, 29.9241, 0.00566257);
 
+    bool useTwiddler = false;
     Twiddler twiddler(&pid);
 
-    h.onMessage([&pid, &twiddler](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+    h.onMessage([&pid, &twiddler, &useTwiddler](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
         // "42" at the start of the message means there's a websocket message event.
         // The 4 signifies a websocket message
         // The 2 signifies a websocket event
@@ -181,8 +190,8 @@ int main()
                     auto msg = "42[\"steer\"," + msgJson.dump() + "]";
                     ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 
-                    if (!twiddler.twiddleFinished()) {
-                        // twiddler.checkTwiddle(&ws);
+                    if (useTwiddler && !twiddler.twiddleFinished()) {
+                        twiddler.checkTwiddle(&ws);
                     }
                 }
             } else {
