@@ -42,9 +42,9 @@ I used twiddle for hyperparameters tunning. Each run consisted of 10000 samples,
 TODO: implement smarter algorithm for throttle.
 
 ## Hyperparameters tunning
-I took starter values from lecture:
+I took starter values from lessons:
 Kp = 0.2, Kd = 3.0, Ki = 0.004
-and use twiddle algorithm described by lectures in order to find best parameter values.
+and use twiddle algorithm described by lessons in order to find best parameter values.
 
 For twiddle algorithm initially I used dp = {1, 1, 1} and multiplication koefficients 1.1 and 0.9 for transition step.
 But quickly figure out that process will converge slowly and changes dp to {0.1, 1, 0.01}.
