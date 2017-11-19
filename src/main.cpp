@@ -41,11 +41,11 @@ class Twiddler {
 public:
     Twiddler(PID* pid) :
         pid_(pid),
-        bestError_(100),
+        bestError_(2000),
         counter_(0),
         twiddleStep_(0),
         params_({pid->Kp, pid->Kd, pid->Ki}),
-        dParams_({0.5, 1.0, 0.005}),
+        dParams_({1.0, 1.0, 0.1}),
         paramsIndex_(0),
         finished_(false)
     {}
@@ -53,9 +53,9 @@ public:
     void checkTwiddle(uWS::WebSocket<uWS::SERVER>* ws) {
         ++counter_;
 
-        int twiddleCounterLimit = 5000;
+        int twiddleCounterLimit = 10000;
         if (counter_ > std::min(twiddleCounterLimit / 2, 500)) {
-            accumulatedError_ += pid_->TotalError() * pid_->TotalError();
+            accumulatedError_ += pid_->p_error * pid_->p_error;
         }
 
         if (counter_ >= twiddleCounterLimit || accumulatedError_ >= bestError_) {
@@ -88,7 +88,7 @@ public:
         } else if (twiddleStep_ == 1) {
             if (accumulatedError_ < bestError_) {
                 bestError_ = accumulatedError_;
-                dParams_[paramsIndex_] *= 1.1;
+                dParams_[paramsIndex_] *= 1.3;
 
                 twiddleNextParam();
             } else {
@@ -98,12 +98,12 @@ public:
         } else if (twiddleStep_ == 2) {
             if (accumulatedError_ < bestError_) {
                 bestError_ = accumulatedError_;
-                dParams_[paramsIndex_] *= 1.1;
+                dParams_[paramsIndex_] *= 1.3;
 
                 twiddleNextParam();
             } else {
                 params_[paramsIndex_] += dParams_[paramsIndex_];
-                dParams_[paramsIndex_] *= 0.9;
+                dParams_[paramsIndex_] *= 0.7;
 
                 twiddleNextParam();
             }
@@ -144,7 +144,12 @@ int main()
     PID pid;
 //    pid.Init(0.15, 1.5, 0.0001);
 //    pid.Init(1, 10.0, 0.01);
-    pid.Init(0.2, 3, 0.004);
+    pid.Init(0.2, 3, 0.002);
+
+
+//    Twiddle: parameters:  Kp = 0.755967 Kd = 29.9241 Ki = 0.00566257
+    pid.Init(0.755967, 29.9241, 0.00566257);
+
     Twiddler twiddler(&pid);
 
     h.onMessage([&pid, &twiddler](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
@@ -177,7 +182,7 @@ int main()
                     ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 
                     if (!twiddler.twiddleFinished()) {
-                        twiddler.checkTwiddle(&ws);
+                        // twiddler.checkTwiddle(&ws);
                     }
                 }
             } else {
