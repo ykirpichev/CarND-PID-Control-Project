@@ -58,6 +58,8 @@ Initial: dp = {1.0, 1.0, 1.0}
 Transition multiplicators: {1.3, 0.7}
 And process converged rather quickly to almost the same values:  Kp = 0.756567 Kd = 28.5002 Ki = 0.00566257.
 
+## Final video
+[Final video](./output/pid_controller_final.avi)
 ---
 ## Dependencies
 
