@@ -51,7 +51,7 @@ public:
     void checkTwiddle(uWS::WebSocket<uWS::SERVER>* ws) {
         ++counter_;
 
-        int twiddleCounterLimit = 10000;
+        int twiddleCounterLimit = 5000;
         if (counter_ > std::min(twiddleCounterLimit / 2, 500)) {
             accumulatedError_ += pid_->p_error * pid_->p_error;
         }
@@ -160,8 +160,10 @@ int main()
 
     bool useTwiddler = false;
     Twiddler twiddler(&pid);
+    PID pidThrottle;
+    pidThrottle.Init(1.5, 15.5, 0);
 
-    h.onMessage([&pid, &twiddler, &useTwiddler](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+    h.onMessage([&pid, &twiddler, &useTwiddler, &pidThrottle](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
         // "42" at the start of the message means there's a websocket message event.
         // The 4 signifies a websocket message
         // The 2 signifies a websocket event
@@ -183,10 +185,16 @@ int main()
                     * NOTE: Feel free to play around with the throttle and speed. Maybe use
                     * another PID controller to control the speed!
                     */
-
+                    pidThrottle.UpdateError(fabs(cte));
+                    double throttle = 0.7 + pidThrottle.TotalError();
+                    if (speed < 30) {
+                        throttle = std::max(throttle, 0.3);
+                    } else {
+                        throttle = std::max(throttle, -0.3);
+                    }
                     json msgJson;
                     msgJson["steering_angle"] = steer_value;
-                    msgJson["throttle"] = 0.3;
+                    msgJson["throttle"] = throttle;
                     auto msg = "42[\"steer\"," + msgJson.dump() + "]";
                     ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 
